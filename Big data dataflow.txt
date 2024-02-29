@@ -1,0 +1,409 @@
++++++++++++++++++++++++ Batch Pipeline +++++++++++++++++++++++++++ Codigo fuente
+
+python3
+
+-m bulkdeal_aggr \
+--input gs://dataflow_demo19/bulk.csv \
+--output gs://dataflow_demo19/out.txt \
+--project gcp-dataeng-demos  \
+--region asia-south2 \
+--staging_location gs://dataflow_demo19/staging \
+--temp_location gs://dataflow_demo19/temp \
+--runner DataflowRunner
+
+
++++++++++++++++++++++++ Batch Pipeline +++++++++++++++++++++++++++ Codigo Alex
+
+
+python3 -m pruebadatos \
+--input gs://datosh_diarios/datosHistoricos/agency.txt \
+--output gs://datosh_diarios/datosHistoricos/agencyout.txt \
+--project proyectodatosbd  \
+--region us-central1  \
+--staging_location gs://datosh_diarios/datosHistoricos/staging \
+--temp_location gs://datosh_diarios/datosHistoricos/temp \
+--runner DataflowRunner
+
+
+
+
+--------------
+---------------
+CODIGO FUENTE
+--------------
+---------------
+
+# Import required modules and methods
+import argparse
+import logging
+import apache_beam as beam
+import re
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions
+
+# ParDo Class for parallel processing by applying user defined tranformations
+class scrip_val(beam.DoFn):
+    def process(self, element):
+        try:
+            line = element.split('"')
+            if line[9] == 'BUY':
+                tp=line[3]+','+line[11].replace(',','')
+            else:
+                tp=line[3]+',-'+line[11].replace(',','')
+            tp=tp.split()
+            return tp
+        except:
+            logging.info('Some Error occured')
+
+# Entry run method for triggering pipline
+def run():
+    #Input arguments , reading from commandline
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input',
+                        dest='input',
+                        default='gs://dataflow_demo19',
+                        help='Input file to process.')
+    parser.add_argument('--output',
+                        dest='output',
+                        required=True,
+                        help='Output file to write results to.')
+    known_args, pipeline_args = parser.parse_known_args()
+	
+    # Function to SUM grouped elements
+    def sum_groups(word_ones):
+        (word, ones) = word_ones
+        return word + ',' + str(sum(ones))
+    '''
+    def format_result(bulk_deal):
+        (bulk, deal) = bulk_deal
+        return '%s: %d' % (bulk, deal)
+    '''
+    # Function to parse and format given input to Big Query readable JSON format
+    def parse_method(string_input):
+
+        values = re.split(",",re.sub('\r\n', '', re.sub(u'"', '', string_input)))
+        row = dict(
+            zip(('SYMBOL', 'BUY_SELL_QTY'),
+                values))
+        return row
+    
+    # Main Pipeline 
+    with beam.Pipeline(options=PipelineOptions(pipeline_args)) as p:
+        lines = p | 'read' >> ReadFromText(known_args.input,skip_header_lines=1)
+        counts = (
+                lines
+                | 'Get required tuple'  >> beam.ParDo(scrip_val())
+                | 'PairWithValue' >> beam.Map(lambda x: (x.split(',')[0],int(x.split(',')[1])))
+                | 'Group by Key' >> beam.GroupByKey()
+                | 'Sum Group' >> beam.Map(sum_groups)
+                | 'To String' >> beam.Map(lambda s: str(s))
+                | 'String To BigQuery Row' >> beam.Map(lambda s: parse_method(s))
+                #| 'format' >> beam.Map(format_result)
+                #| 'Print'  >> beam.Map(print)
+                #| 'write' >> WriteToText(known_args.output)
+        )
+        # Write to Big Query Sink
+        counts| 'Write to BigQuery' >> beam.io.Write(
+                                                 beam.io.WriteToBigQuery(
+                                                                            'batach_data',
+                                                                             dataset='dataflow_demo',
+                                                                             project='gcp-dataeng-demos',
+                                                                             schema ='SYMBOL:STRING,BUY_SELL_QTY:INTEGER',
+                                                                             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                                                                             write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE
+                                                                        )
+                                                    )
+
+# Trigger entry function here       
+if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.INFO)
+    run()
+
+
+
+-----------------------------------------------------
+-----------------------------------------------------
+FUNCIONA PERO NO PASA DATOS NI CREA LA TABLA(DEBE SER PQ NO PASA LOS DATOS)
+-----------------------------------------------------
+-----------------------------------------------------
+
+# Import required modules and methods
+import argparse
+import logging
+import apache_beam as beam
+import re
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions
+
+# ParDo Class for parallel processing by applying user defined tranformations
+# Clase ParDo para procesamiento paralelo aplicando transformaciones definidas por el usuario
+class scrip_val(beam.DoFn):
+    def process(self, element):
+        try:
+            line = element.split('"')
+            if line[9] == 'BUY':
+                tp=line[3]+','+line[11].replace(',','')
+            else:
+                tp=line[3]+',-'+line[11].replace(',','')
+            tp=tp.split()
+            return tp
+        except:
+            logging.info('Some Error occured')
+
+# Entry run method for triggering pipline
+# Método de ejecución de entrada para activar la tubería
+def run():
+    #Input arguments , reading from commandline
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input',
+                        dest='input',
+                        default='gs://datosh_diarios',
+                        help='Input file to process.')
+    parser.add_argument('--output',
+                        dest='output',
+                        required=True,
+                        help='Output file to write results to.')
+    known_args, pipeline_args = parser.parse_known_args()
+	
+    # Function to SUM grouped elements
+	# Función para SUMAR elementos agrupados
+    def sum_groups(word_ones):
+        (word, ones) = word_ones
+        return word + ',' + str(sum(ones))
+    '''
+    def format_result(bulk_deal):
+        (bulk, deal) = bulk_deal
+        return '%s: %d' % (bulk, deal)
+    '''
+    # Function to parse and format given input to Big Query readable JSON format
+	# Función para analizar y formatear la entrada dada al formato JSON legible de Big Query
+    def parse_method(string_input):
+
+        values = re.split(",",re.sub('\r\n', '', re.sub(u'"', '', string_input)))
+        row = dict(
+            zip(('SYMBOL', 'BUY_SELL_QTY'),
+                values))
+        return row
+    
+    # Main Pipeline 
+	# Tubería principal
+    with beam.Pipeline(options=PipelineOptions(pipeline_args)) as p:
+        lines = p | 'read' >> ReadFromText(known_args.input,skip_header_lines=1)
+        counts = (
+                lines
+                | 'Get required tuple'  >> beam.ParDo(scrip_val())
+                | 'PairWithValue' >> beam.Map(lambda x: (x.split(',')[0],int(x.split(',')[1])))
+                | 'Group by Key' >> beam.GroupByKey()
+                | 'Sum Group' >> beam.Map(sum_groups)
+                | 'To String' >> beam.Map(lambda s: str(s))
+                | 'String To BigQuery Row' >> beam.Map(lambda s: parse_method(s))
+                #| 'format' >> beam.Map(format_result)
+                #| 'Print'  >> beam.Map(print)
+                #| 'write' >> WriteToText(known_args.output)
+        )
+        # Write to Big Query Sink
+	# Escribir en Big Query Sink
+        counts| 'Write to BigQuery' >> beam.io.Write(
+                                                 beam.io.WriteToBigQuery(
+                                                                            'datos_historicos',
+                                                                             dataset='dataflow_demo',
+                                                                             project='proyectodatosbd',
+                                                                             schema ='SYMBOL:STRING,BUY_SELL_QTY:INTEGER',
+                                                                             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                                                                             write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE
+                                                                        )
+                                                    )
+
+# Trigger entry function here
+# Activar la función de entrada aquí       
+if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.INFO)
+    run()
+
+
+
+
+-----------------------------------------------------
+-----------------------------------------------------
+PROBANDO......NO FUNCIONA, PROBLEMA CON EL SCHEMA AUTOMATIZADO
+-----------------------------------------------------
+-----------------------------------------------------
+
+# Import required modules and methods
+import argparse
+import logging
+import apache_beam as beam
+import re
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions
+
+
+# remove whitespaces
+class RemoveWhitespace(beam.DoFn):
+    def process(self, element):
+        cleaned_element = [col.strip() for col in element]
+        return [cleaned_element]
+
+def remove_whitespace(agency, agencyout):
+    with beam.Pipeline() as pipeline:
+        lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(agency)
+        data = lines | 'SplitColumns' >> beam.Map(lambda line: line.split(','))
+        cleaned_data = data | 'RemoveWhitespace' >> beam.ParDo(RemoveWhitespace())
+        cleaned_lines = cleaned_data | 'JoinColumns' >> beam.Map(lambda cols: ','.join(cols))
+        cleaned_lines | 'WriteToText' >> beam.io.WriteToText(agencyout)
+
+
+# Entry run method for triggering pipeline
+def run():
+    # Input arguments, reading from command line
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input',
+                        dest='input',
+                        default='gs://datosh_diarios/datosHistoricos',
+                        help='Input file to process.')
+    parser.add_argument('--output',
+                        dest='output',
+                        required=True,
+                        help='Output file to write results to.')
+    known_args, pipeline_args = parser.parse_known_args()
+    
+    # Function to generate schema dynamically based on input data
+    def generate_schema(data):
+        header = data[0].split(',')
+        fields = []
+        for column in header:
+            fields.append({'name': column, 'type': 'STRING'})
+        return {'fields': fields}
+    
+    # Function to parse and format given input to BigQuery readable JSON format
+    def parse_method(string_input):
+        values = re.split(",", re.sub('\r\n', '', re.sub(u'"', '', string_input)))
+        header = ['COLUMN' + str(i) for i in range(1, len(values) + 1)]
+        row = dict(zip(header, values))
+        return row
+    
+    # Main Pipeline
+    with beam.Pipeline(options=PipelineOptions(pipeline_args)) as p:
+        lines = p | 'read' >> ReadFromText(known_args.input, skip_header_lines=1)
+        schema = lines | 'Generate Schema' >> beam.Map(generate_schema)
+        
+        counts = (
+            lines
+            | 'Remove_whitespace'  >> beam.ParDo(RemoveWhitespace())
+            | 'To String' >> beam.Map(lambda s: str(s))
+            | 'String To BigQuery Row' >> beam.Map(lambda s: parse_method(s))
+        )
+        
+        # Write to BigQuery Sink
+        counts | 'Write to BigQuery' >> beam.io.Write(
+            beam.io.WriteToBigQuery(
+                'datos_historicos',
+                dataset='dataflow_demo',
+                project='proyectodatosbd',
+                schema=schema,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE
+            )
+        )
+
+# Trigger entry function here
+if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.INFO)
+    run()
+
+
+-----------------------------------------------------
+-----------------------------------------------------
+PROBANDO......
+-----------------------------------------------------
+-----------------------------------------------------
+
+# Import required modules and methods
+import argparse
+import logging
+import apache_beam as beam
+import re
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions
+
+# remove whitespaces
+class RemoveWhitespace(beam.DoFn):
+    def process(self, element):
+        cleaned_element = [col.strip() for col in element]
+        return [cleaned_element]
+
+def remove_whitespace(agency, agencyout):
+    with beam.Pipeline() as pipeline:
+        lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(agency)
+        data = lines | 'SplitColumns' >> beam.Map(lambda line: line.split(','))
+        cleaned_data = data | 'RemoveWhitespace' >> beam.ParDo(RemoveWhitespace())
+        cleaned_lines = cleaned_data | 'JoinColumns' >> beam.Map(lambda cols: ','.join(cols))
+        cleaned_lines | 'WriteToText' >> beam.io.WriteToText(agencyout)
+
+# Entry run method for triggering pipline
+# Método de ejecución de entrada para activar la tubería
+def run():
+    #Input arguments , reading from commandline
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input',
+                        dest='input',
+                        default='gs://datosh_diarios',
+                        help='Input file to process.')
+    parser.add_argument('--output',
+                        dest='output',
+                        required=True,
+                        help='Output file to write results to.')
+    known_args, pipeline_args = parser.parse_known_args()
+	
+    
+    # Function to parse and format given input to Big Query readable JSON format
+	# Función para analizar y formatear la entrada dada al formato JSON legible de Big Query
+    def parse_method(string_input):
+
+        values = re.split(",",re.sub('\r\n', '', re.sub(u'"', '', string_input)))
+        row = dict(
+            zip(('SYMBOL', 'BUY_SELL_QTY'),
+                values))
+        return row
+    
+    # Main Pipeline 
+	# Tubería principal
+    with beam.Pipeline(options=PipelineOptions(pipeline_args)) as p:
+        lines = p | 'read' >> ReadFromText(known_args.input,skip_header_lines=1)
+        counts = (
+                lines
+                | 'Get required tuple'  >> beam.ParDo(RemoveWhitespace())
+                | 'PairWithValue' >> beam.Map(lambda x: (x.split(',')[0],int(x.split(',')[1])))
+                | 'Group by Key' >> beam.GroupByKey()
+                | 'To String' >> beam.Map(lambda s: str(s))
+                | 'String To BigQuery Row' >> beam.Map(lambda s: parse_method(s))
+                #| 'format' >> beam.Map(format_result)
+                #| 'Print'  >> beam.Map(print)
+                #| 'write' >> WriteToText(known_args.output)
+        )
+        # Write to Big Query Sink
+	# Escribir en Big Query Sink
+        counts| 'Write to BigQuery' >> beam.io.Write(
+                                                 beam.io.WriteToBigQuery(
+                                                                            'datos_historicos',
+                                                                             dataset='dataflow_demo',
+                                                                             project='proyectodatosbd',
+                                                                             schema ='SYMBOL:STRING',
+                                                                             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                                                                             write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE
+                                                                        )
+                                                    )
+
+# Trigger entry function here
+# Activar la función de entrada aquí       
+if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.INFO)
+    run()
+
+
+--------------------------------------------------
+---------------------------------------------------

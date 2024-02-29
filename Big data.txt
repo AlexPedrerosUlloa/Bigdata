@@ -1,0 +1,150 @@
+-------------------- OBTENER RECORRIDO ----------------------------
+import requests
+from google.cloud import storage
+
+#Obtener los recorridos diarios disponibles desde la API de Red.cl
+api_url = "https://www.red.cl/restservice_v2/rest/getservicios/all"
+response = requests.get(api_url)
+json_data = response.json()
+
+#Almacenar el JSON en Google Cloud Storage
+bucket_name = "bucketalex001"  # Reemplaza con el nombre de tu bucket
+filename = "recorridos.json"  # Nombre del archivo JSON a crear en el bucket
+
+client = storage.Client()
+bucket = client.bucket(bucket_name)
+blob = bucket.blob(filename)
+blob.upload_from_string(response.text, content_type="application/json")
+
+print(f"Archivo JSON '{filename}' almacenado en el bucket '{bucket_name}'")
+
+-------------------- DATOS HISTORICOS ----------------------------
+
+import requests
+from google.cloud import storage
+
+#Obtener los recorridos diarios disponibles desde la API de Red.cl
+api_url = "https://datos.gob.cl/api/action/package_show?id=33245"
+response = requests.get(api_url)
+json_data = response.json()
+
+#Almacenar el JSON en Google Cloud Storage
+bucket_name = "bucketalex001"  # Reemplaza con el nombre de tu bucket
+filename = "historicos.json"  # Nombre del archivo JSON a crear en el bucket
+
+client = storage.Client()
+bucket = client.bucket(bucket_name)
+blob = bucket.blob(filename)
+blob.upload_from_string(response.text, content_type="application/json")
+
+print(f"Archivo JSON '{filename}' almacenado en el bucket '{bucket_name}'")
+
+------------------------------------------------
+--------------------------------------------------
+
+import requests
+import zipfile
+from io import BytesIO
+from google.cloud import storage
+
+# Obtener los recorridos diarios disponibles desde la API de Red.cl
+api_url = "https://datos.gob.cl/api/action/package_show?id=33245"
+response = requests.get(api_url)
+json_data = response.json()
+
+# Almacenar el JSON en Google Cloud Storage
+bucket_name = "bucketalex001"  # Reemplaza con el nombre de tu bucket
+filename = "historicos.zip"  # Nombre del archivo ZIP a crear en el bucket
+
+client = storage.Client()
+bucket = client.bucket(bucket_name)
+blob = bucket.blob(filename)
+blob.upload_from_string(response.content, content_type="application/zip")
+
+print(f"Archivo ZIP '{filename}' almacenado en el bucket '{bucket_name}'")
+
+# Descomprimir el archivo ZIP
+zip_file = zipfile.ZipFile(BytesIO(response.content))
+zip_file.extractall()
+
+print("Archivo ZIP descomprimido exitosamente.")
+
+---------------------------------------------------------
+----------------------------------------------------------
+
+import requests
+import zipfile
+from io import BytesIO
+from google.cloud import storage
+
+# URL del archivo ZIP a descargar
+zip_url = "https://datos.gob.cl/api/action/package_show?id=33245"
+
+# Nombre del archivo ZIP a almacenar en Google Cloud Storage
+bucket_name = "bucketalex001"
+filename = "historicos.zip"
+
+# Descargar el archivo ZIP
+response = requests.get(zip_url)
+zip_data = BytesIO(response.content)
+
+# Descomprimir el archivo ZIP
+with zipfile.ZipFile(zip_data, "r") as zip_ref:
+    # Obtener la lista de nombres de archivos dentro del ZIP
+    file_list = zip_ref.namelist()
+
+    # Extraer los archivos del ZIP
+    for file_name in file_list:
+        # Leer el contenido del archivo dentro del ZIP
+        file_content = zip_ref.read(file_name)
+
+        # Almacenar el archivo en Google Cloud Storage
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(file_name)
+        blob.upload_from_string(file_content)
+
+        print(f"Archivo '{file_name}' almacenado en el bucket '{bucket_name}'")
+
+--------------------------------------------------------------
+--------------------------------------------------------------
+
+import requests
+import os
+from urllib.parse import urljoin
+from bs4 import BeautifulSoup
+from google.cloud import storage
+
+# URL de la página web que contiene los enlaces a los archivos ZIP
+web_url = "https://datos.gob.cl/api/action/package_show?id=33245"
+base_url = "https://datos.gob.cl/api/action/package_show?id=33245"
+
+# Nombre del bucket de Google Cloud Storage
+bucket_name = "bucketalex001"
+
+# Obtener el contenido HTML de la página web
+response = requests.get(web_url)
+html_content = response.content
+
+# Crear una instancia de BeautifulSoup para analizar el contenido HTML
+soup = BeautifulSoup(html_content, "html.parser")
+
+# Encontrar todos los enlaces <a> que apuntan a archivos ZIP
+zip_links = soup.find_all("a", href=lambda href: href.endswith(".zip"))
+
+# Descargar y guardar cada archivo ZIP en Google Cloud Storage
+for link in zip_links:
+    zip_url = urljoin(base_url, link["href"])
+    file_name = os.path.basename(zip_url)
+
+    # Descargar el archivo ZIP
+    response = requests.get(zip_url)
+    zip_content = response.content
+
+    # Guardar el archivo ZIP en Google Cloud Storage
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(file_name)
+    blob.upload_from_string(zip_content)
+
+    print(f"Archivo ZIP '{file_name}' almacenado en el bucket '{bucket_name}'")

@@ -1,0 +1,81 @@
+import requests
+from google.cloud import storage
+import json
+
+# Hacer la solicitud al primer enlace para obtener los números de transporte
+response = requests.get("https://www.red.cl/restservice_v2/rest/getservicios/all")
+data = response.json()
+
+# Obtener el código de servicio deseado del primer enlace (por ejemplo, el primer número de transporte)
+codigo_servicio = data[0]['codigo']
+
+# Hacer la solicitud al segundo enlace utilizando el código de servicio obtenido
+url = f"https://www.red.cl/restservice_v2/rest/conocerecorrido?codsint={codigo_servicio}"
+response = requests.get(url)
+trayecto_data = response.json()
+
+# Almacenar la respuesta en un bucket de Google Cloud Storage
+bucket_name = "bucketalex001"
+file_name = "infoTrayecto.json"
+
+client = storage.Client()
+bucket = client.bucket(bucket_name)
+blob = bucket.blob(file_name)
+blob.upload_from_string(json.dumps(trayecto_data), content_type="application/json")
+
+print(f"La respuesta ha sido almacenada en el archivo {file_name} en el bucket {bucket_name}.")
+
+--------------------
+ERROR QUE TIRA
+--------------------
+Traceback (most recent call last):
+  File "/home/al_pedrerosu/infoT.py", line 10, in <module>
+    codigo_servicio = data[0]['codigo']
+TypeError: string indices must be integers
+
+
+--------------------------------
+--------------------------------
+
+import requests
+from google.cloud import storage
+import json
+
+# Hacer la solicitud al primer enlace para obtener los números de transporte
+response = requests.get("https://www.red.cl/restservice_v2/rest/getservicios/all")
+data = response.text
+
+try:
+    # Intentar analizar la respuesta como JSON
+    data = json.loads(data)
+    # Obtener el código de servicio deseado del primer enlace (por ejemplo, el primer número de transporte)
+    codigo_servicio = data[0]['codigo']
+except (json.JSONDecodeError, KeyError):
+    print("Error al analizar la respuesta del primer enlace o al acceder al código de servicio.")
+    codigo_servicio = None
+
+if codigo_servicio:
+    # Hacer la solicitud al segundo enlace utilizando el código de servicio obtenido
+    url = f"https://www.red.cl/restservice_v2/rest/conocerecorrido?codsint={codigo_servicio}"
+    response = requests.get(url)
+    trayecto_data = response.json()
+
+    # Almacenar la respuesta en un bucket de Google Cloud Storage
+    bucket_name = "bucketalex001"
+    file_name = "infoTrayecto.json"
+
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(file_name)
+    blob.upload_from_string(json.dumps(trayecto_data), content_type="application/json")
+
+    print(f"La respuesta ha sido almacenada en el archivo {file_name} en el bucket {bucket_name}.")
+
+------------------------------
+error que tira
+------------------------------
+
+Traceback (most recent call last):
+  File "/home/al_pedrerosu/infoT.py", line 13, in <module>
+    codigo_servicio = data[0]['codigo']
+TypeError: string indices must be integers

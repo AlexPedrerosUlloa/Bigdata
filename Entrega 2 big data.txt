@@ -1,0 +1,166 @@
+QUE DEBEMOS HACER EN BIG DATA?
+1. Primero hay que elegir 10 actividades que aparecen en el caso y desarrollarlas
+-Identificar las películas con la calificación más alta en IMDb.
+-Identificar las películas con las críticas más positivas y negativas.
+-Identificar las películas más exitosas dirigidas por mujeres.
+-Identificar las películas más populares basadas en libros o cómics.
+----Identificar las actrices y actores que trabajan más frecuentemente en producciones.
+-Identificar las películas y programas de televisión más vistos en diferentes países y regiones.
+-Analizar la popularidad de los diferentes géneros de películas y programasde televisión en diferentes países y regiones.
+-Identificar los directores con mayor éxito financiero en la industria.
+-Analizar la relación entre la duración de la película y el éxito financiero.
+-Identificar los personajes más populares en las películas y programas de televisión.
+-Identificar los géneros de películas y programas de televisión más rentables.
+-Analizar la evolución de la popularidad de un actor, actriz o director a lo largo del tiempo.
+
+2. A estas actividades que se eligieron, 
+
+Cuando tengamos listos los datos (limpios con su debido proceso) los conectaremos 
+a CLOUD DATA STUDIO, de esta forma podremos crear visualizaciones e informes elegantes
+y poder compartirlo sin problema
+
+
+-------------------------------------------------
+-------------------------------------------------
+
+CARACTERISTICAS DE LOS CONJUNTOS DE DATOS
+
+-------------------------------------------------
+-------------------------------------------------
+
+-----------------
+1. name.basics
+-----------------
+*VARIABLES
+-nconst
+-primaryName
+-birthYear
+-deathYear
+-primaryProfession
+-knownForTitles
+
+*VARIABLES DATOS ERRONEOS
+-birthYear --> 93,755 mismatched values (/NA)
+-deathYear --> valores nulos 113,140 (84,74%)
+-primaryProfession --> 2,937 missing values (espacios sin datos)
+-knownForTitles --> valores nulos 1,075 (0,81%)
+
+-----------------
+2. title.akas
+-----------------
+*VARIABLES
+-titleId
+-ordering
+-title
+-region
+-language
+-types
+-attributes
+-isOriginalTitle
+
+*VARIABLES DATOS ERRONEOS
+-region --> valores nulos 36.663 (18,62%)
+-language --> valores nulos 174.318 (88,52%)
+-types --> valores nulos 32.963 (16,74%)
+-attributes --> valores nulos 184.850 (93,87%)
+-isOriginalTitle --> 4 mismatched values (/NA)
+
+-----------------
+3. title.basics
+-----------------
+*VARIABLES
+-tconst
+-titleType
+-primaryTitle
+-originalTitle
+-isAdult
+-startYear
+-endYear
+-runtimeMinutes
+-genres
+
+*VARIABLES DATOS ERRONEOS
+-startYear --> 81 mismatched values (/NA)
+-endYear --> valores nulos 127.071 (95,8%)
+-runtimeMinutes --> valores nulos 19.563 (14,75%)
+-genres --> valores nulos 8.964 (6,76%)
+
+-----------------
+4. title.crew (erroneo)
+-----------------
+*VARIABLES
+-
+
+*VARIABLES DATOS ERRONEOS
+-
+
+-----------------
+5. title.episode
+-----------------
+*VARIABLES
+-tconst
+-parentTconst
+-seasonNumber
+-episodeNumber
+
+*VARIABLES DATOS ERRONEOS
+-seasonNumber --> 73.991 (17,6%) mismatched values (/NA)
+-episodeNumber81 --> 73.991 (17,6%) mismatched values (/NA)
+
+-----------------
+6. title.principals
+-----------------
+*VARIABLES
+-tconst
+-ordering
+-nconst
+-category
+-job
+-characters
+
+*VARIABLES DATOS ERRONEOS
+-job --> valores nulos 83.825 (85,25%)
+-characters --> valores nulos 45.504 (46,28%)
+
+-----------------
+7. title.ratings
+-----------------
+*VARIABLES
+-tconst
+-averageRating
+-numVotes
+
+*VARIABLES DATOS ERRONEOS
+- no tiene
+
+
+-------------------------------------------------
+-------------------------------------------------
+QUERYS DE LAS ACTIVIDADES ELEGIDAS
+-------------------------------------------------
+-------------------------------------------------
+
+1.Identificar las películas con la calificación más alta en IMDb.
+
+SELECT titleType as Tipo, PrimaryTitle as Titulo, averageRating as Calificacion, numVotes as Votos
+FROM d_1.title_basics
+JOIN d_1.title_ratings ON title_basics.tconst = title_ratings.tconst
+WHERE averageRating > 9.9;
+
+2.Analizar la popularidad de los diferentes géneros de películas y programasde televisión en diferentes países y regiones.
+
+SELECT titleType as Formato,genres as Generos, region as Region, runTimeMinutes as TiempoEjecucionMin
+FROM d_1.title_basics
+JOIN d_1.title_akas ON title_basics.tconst = title_akas.titleId
+WHERE titleType = "movie" or titleType ="tvSeries" or titleType ="tvMiniSeries"
+ORDER BY TiempoEjecucionMin DESC;
+
+3.-Identificar las películas y programas de televisión más vistos en diferentes países y regiones.
+
+SELECT region as Region, primaryTitle as Titulo, runtimeMinutes as TiempoEjecucionMin
+FROM d_1.title_basics
+JOIN d_1.title_akas ON title_basics.tconst = title_akas.titleId
+WHERE titleType = "movie" or titleType ="tvSeries" or titleType ="tvMiniSeries" or titleType ="tvEpisode" or titleType ="tvMiniSeries" or titleType ="tvShort" or titleType ="tvSpecial"
+ORDER BY TiempoEjecucionMin DESC;
+
+4.
